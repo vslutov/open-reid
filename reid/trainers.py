@@ -3,6 +3,7 @@ import time
 
 import torch
 from torch.autograd import Variable
+from tqdm.autonotebook import tqdm
 
 from .evaluation_metrics import accuracy
 from .loss import OIMLoss, TripletLoss
@@ -24,13 +25,13 @@ class BaseTrainer(object):
         precisions = AverageMeter()
 
         end = time.time()
-        for i, inputs in enumerate(data_loader):
+        for i, inputs in enumerate(tqdm(data_loader, desc=f'Epoch {epoch}')):
             data_time.update(time.time() - end)
 
             inputs, targets = self._parse_data(inputs)
             loss, prec1 = self._forward(inputs, targets)
 
-            losses.update(loss.data[0], targets.size(0))
+            losses.update(loss.data.item(), targets.size(0))
             precisions.update(prec1, targets.size(0))
 
             optimizer.zero_grad()
@@ -40,17 +41,17 @@ class BaseTrainer(object):
             batch_time.update(time.time() - end)
             end = time.time()
 
-            if (i + 1) % print_freq == 0:
-                print('Epoch: [{}][{}/{}]\t'
-                      'Time {:.3f} ({:.3f})\t'
-                      'Data {:.3f} ({:.3f})\t'
-                      'Loss {:.3f} ({:.3f})\t'
-                      'Prec {:.2%} ({:.2%})\t'
-                      .format(epoch, i + 1, len(data_loader),
-                              batch_time.val, batch_time.avg,
-                              data_time.val, data_time.avg,
-                              losses.val, losses.avg,
-                              precisions.val, precisions.avg))
+            # if (i + 1) % print_freq == 0:
+            #     print('Epoch: [{}][{}/{}]\t'
+            #           'Time {:.3f} ({:.3f})\t'
+            #           'Data {:.3f} ({:.3f})\t'
+            #           'Loss {:.3f} ({:.3f})\t'
+            #           'Prec {:.2%} ({:.2%})\t'
+            #           .format(epoch, i + 1, len(data_loader),
+            #                   batch_time.val, batch_time.avg,
+            #                   data_time.val, data_time.avg,
+            #                   losses.val, losses.avg,
+            #                   precisions.val, precisions.avg))
 
     def _parse_data(self, inputs):
         raise NotImplementedError
@@ -71,11 +72,11 @@ class Trainer(BaseTrainer):
         if isinstance(self.criterion, torch.nn.CrossEntropyLoss):
             loss = self.criterion(outputs, targets)
             prec, = accuracy(outputs.data, targets.data)
-            prec = prec[0]
+            prec = prec.item()
         elif isinstance(self.criterion, OIMLoss):
             loss, outputs = self.criterion(outputs, targets)
             prec, = accuracy(outputs.data, targets.data)
-            prec = prec[0]
+            prec = prec.item()
         elif isinstance(self.criterion, TripletLoss):
             loss, prec = self.criterion(outputs, targets)
         else:
