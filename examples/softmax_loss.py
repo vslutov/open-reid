@@ -77,8 +77,11 @@ def main(args):
     cudnn.benchmark = True
 
     # Redirect print to both console and log file
+    name = f'{args.dataset}-{args.arch}'
+    logs_dir = f'logs/softmax-loss/{name}'
+
     if not args.evaluate:
-        sys.stdout = Logger(osp.join(args.logs_dir, 'log.txt'))
+        sys.stdout = Logger(osp.join(logs_dir, 'log.txt'))
 
     # Create data loaders
     if args.height is None or args.width is None:
@@ -136,7 +139,8 @@ def main(args):
                                 nesterov=True)
 
     # Trainer
-    trainer = Trainer(model, criterion)
+
+    trainer = Trainer(model, criterion, name=name)
 
     # Schedule learning rate
     def adjust_lr(epoch):
@@ -159,14 +163,14 @@ def main(args):
             'state_dict': model.module.state_dict(),
             'epoch': epoch + 1,
             'best_top1': best_top1,
-        }, is_best, fpath=osp.join(args.logs_dir, 'checkpoint.pth.tar'))
+        }, is_best, fpath=osp.join(logs_dir, 'checkpoint.pth.tar'))
 
         print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
               format(epoch, top1, best_top1, ' *' if is_best else ''))
 
     # Final test
     print('Test with best model:')
-    checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
+    checkpoint = load_checkpoint(osp.join(logs_dir, 'model_best.pth.tar'))
     model.module.load_state_dict(checkpoint['state_dict'])
     metric.train(model, train_loader)
     evaluator.evaluate(test_loader, dataset.query, dataset.gallery, metric)

@@ -1,5 +1,8 @@
 from __future__ import print_function, absolute_import
 import time
+import os.path as osp
+from datetime import datetime
+from tensorboardX import SummaryWriter
 
 import torch
 from torch.autograd import Variable
@@ -11,12 +14,17 @@ from .utils.meters import AverageMeter
 
 
 class BaseTrainer(object):
-    def __init__(self, model, criterion):
+    def __init__(self, model, criterion, name):
         super(BaseTrainer, self).__init__()
         self.model = model
         self.criterion = criterion
+        self.name = name
 
-    def train(self, epoch, data_loader, optimizer, print_freq=1):
+    def train(self, epoch, data_loader, optimizer, print_freq=10):
+        current_time = datetime.now().strftime('%b%d_%H-%M-%S')
+        runs_dir = osp.join('runs', self.name + '_' + current_time)
+        writer = SummaryWriter(log_dir=runs_dir)
+
         self.model.train()
 
         batch_time = AverageMeter()
@@ -41,17 +49,21 @@ class BaseTrainer(object):
             batch_time.update(time.time() - end)
             end = time.time()
 
-            # if (i + 1) % print_freq == 0:
-            #     print('Epoch: [{}][{}/{}]\t'
-            #           'Time {:.3f} ({:.3f})\t'
-            #           'Data {:.3f} ({:.3f})\t'
-            #           'Loss {:.3f} ({:.3f})\t'
-            #           'Prec {:.2%} ({:.2%})\t'
-            #           .format(epoch, i + 1, len(data_loader),
-            #                   batch_time.val, batch_time.avg,
-            #                   data_time.val, data_time.avg,
-            #                   losses.val, losses.avg,
-            #                   precisions.val, precisions.avg))
+            if (i + 1) % print_freq == 0:
+                writer.add_scalars(
+                  'loss',
+                  {'train_id_loss': losses.avg
+                  },
+                  epoch)
+
+                writer.add_scalars(
+                  'id_accuracy',
+                  {'train_id_accuracy': precisions.avg
+                  },
+                  epoch)
+
+                losses.reset()
+                precisions.reset()
 
     def _parse_data(self, inputs):
         raise NotImplementedError
