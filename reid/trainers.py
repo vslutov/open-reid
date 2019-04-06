@@ -75,19 +75,19 @@ class BaseTrainer(object):
 class Trainer(BaseTrainer):
     def _parse_data(self, inputs):
         imgs, _, pids, _ = inputs
-        inputs = [Variable(imgs)]
-        targets = Variable(pids.cuda())
+        inputs = [imgs.cuda()]
+        targets = pids.cuda()
         return inputs, targets
 
     def _forward(self, inputs, targets):
         outputs = self.model(*inputs)
         if isinstance(self.criterion, torch.nn.CrossEntropyLoss):
             loss = self.criterion(outputs, targets)
-            prec, = accuracy(outputs.data, targets.data)
+            prec, = accuracy(outputs, targets)
             prec = prec.item()
         elif isinstance(self.criterion, OIMLoss):
             loss, outputs = self.criterion(outputs, targets)
-            prec, = accuracy(outputs.data, targets.data)
+            prec, = accuracy(outputs, targets)
             prec = prec.item()
         elif isinstance(self.criterion, TripletLoss):
             loss, prec = self.criterion(outputs, targets)

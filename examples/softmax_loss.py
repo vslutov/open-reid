@@ -105,7 +105,7 @@ def main(args):
         best_top1 = checkpoint['best_top1']
         print("=> Start epoch {}  best top1 {:.1%}"
               .format(start_epoch, best_top1))
-    model = nn.DataParallel(model).cuda()
+    model = model.cuda()
 
     # Distance metric
     metric = DistanceMetric(algorithm=args.dist_metric)
@@ -124,12 +124,12 @@ def main(args):
     criterion = nn.CrossEntropyLoss().cuda()
 
     # Optimizer
-    if hasattr(model.module, 'base'):
-        base_param_ids = set(map(id, model.module.base.parameters()))
+    if hasattr(model, 'base'):
+        base_param_ids = set(map(id, model.base.parameters()))
         new_params = [p for p in model.parameters() if
                       id(p) not in base_param_ids]
         param_groups = [
-            {'params': model.module.base.parameters(), 'lr_mult': 0.1},
+            {'params': model.base.parameters(), 'lr_mult': 0.1},
             {'params': new_params, 'lr_mult': 1.0}]
     else:
         param_groups = model.parameters()
@@ -160,7 +160,7 @@ def main(args):
         is_best = top1 > best_top1
         best_top1 = max(top1, best_top1)
         save_checkpoint({
-            'state_dict': model.module.state_dict(),
+            'state_dict': model.state_dict(),
             'epoch': epoch + 1,
             'best_top1': best_top1,
         }, is_best, fpath=osp.join(logs_dir, 'checkpoint.pth.tar'))
@@ -171,7 +171,7 @@ def main(args):
     # Final test
     print('Test with best model:')
     checkpoint = load_checkpoint(osp.join(logs_dir, 'model_best.pth.tar'))
-    model.module.load_state_dict(checkpoint['state_dict'])
+    model.load_state_dict(checkpoint['state_dict'])
     metric.train(model, train_loader)
     evaluator.evaluate(test_loader, dataset.query, dataset.gallery, metric)
 
