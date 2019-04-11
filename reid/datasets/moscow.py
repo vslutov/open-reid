@@ -9,7 +9,7 @@ from ..utils.serialization import write_json
 class Moscow(Dataset):
     md5 = '65005ab7d12ec1c44de4eeafe813e68a'
 
-    def __init__(self, root, split_id=0, num_val=10, download=True):
+    def __init__(self, root, split_id=0, num_val=0.2, download=True):
         super(Moscow, self).__init__(root, split_id=split_id)
 
         if download:
@@ -40,7 +40,7 @@ class Moscow(Dataset):
         mkdir_if_missing(images_dir)
 
         # 1501 identities (+1 for background) with 6 camera views each
-        identities = [[[] for _ in range(6)] for _ in range(292)]
+        identities = [[[] for _ in range(6)] for _ in range(297)]
 
         def register(subdir, pattern=re.compile(r'([-\d]+)C(\d)')):
             fpaths = sorted(glob(osp.join(raw_dir, subdir, '*', '*.png')))
@@ -49,7 +49,7 @@ class Moscow(Dataset):
                 fname = osp.basename(fpath)
                 pid, cam = map(int, pattern.search(fname).groups())
                 if pid == -1: continue  # junk images are just ignored
-                assert 0 <= pid <= 291  # pid == 0 means background
+                assert 0 <= pid <= 296  # pid == 0 means background
                 assert 1 <= cam <= 2
                 cam -= 1
                 pids.add(pid)

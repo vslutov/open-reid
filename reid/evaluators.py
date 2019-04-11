@@ -40,30 +40,71 @@ def extract_features(model, data_loader, print_freq=1, metric=None):
 
     return features, labels
 
+BATCH_SIZE = 256
 
-def pairwise_distance(features, query=None, gallery=None, metric=None):
-    if query is None and gallery is None:
-        n = len(features)
-        x = torch.cat(list(features.values()))
-        x = x.view(n, -1)
-        if metric is not None:
-            x = metric.transform(x)
-        dist = torch.pow(x, 2).sum(dim=1, keepdim=True) * 2
-        dist = dist.expand(n, n) - 2 * torch.mm(x, x.t())
-        return dist
+class PairwiseDistance:
+    def __init__(self, features, query=None, gallery=None, metric=None):
+        self.features = features
+        self.query = query
+        self.gallery = gallery
+        self.metric = metric
 
-    x = torch.cat([features[f].unsqueeze(0) for f, _, _ in query], 0)
-    y = torch.cat([features[f].unsqueeze(0) for f, _, _ in gallery], 0)
-    m, n = x.size(0), y.size(0)
-    x = x.view(m, -1)
-    y = y.view(n, -1)
-    if metric is not None:
-        x = metric.transform(x)
-        y = metric.transform(y)
-    dist = torch.pow(x, 2).sum(dim=1, keepdim=True).expand(m, n) + \
-           torch.pow(y, 2).sum(dim=1, keepdim=True).expand(n, m).t()
-    dist.addmm_(1, -2, x, y.t())
-    return dist
+        if query is None and gallery is None:
+            self.shape = (len(features), ) * 2
+        else:
+            self.shape = (len(query), len(gallery))
+
+    def __iter__(self):
+        features = self.features
+        query = self.query
+        gallery = self.gallery
+        metric = self.metric
+
+        if query is None and gallery is None:
+            def iterator():
+                n = len(features)
+                x = torch.cat(list(features.values()))
+                x = x.view(n, -1)
+                if metric is not None:
+                    x = metric.transform(x)
+                dist = torch.pow(x, 2).sum(dim=1, keepdim=True) * 2
+
+                for dist_batch_start in tqdm(range(0, n, BATCH_SIZE), desc='Calc distance'):
+                    dist_batch = dist[dist_batch_start:dist_batch_start + BATCH_SIZE]
+                    x_batch = x[dist_batch_start:dist_batch_start + BATCH_SIZE]
+                    batch_size = dist_batch.shape[0]
+                    dist_batch = (dist_batch.expand(batch_size, n)
+                                  - 2 * torch.mm(x_batch, x.t())
+                                 )
+
+                    for row in dist_batch.cpu().numpy():
+                        yield row
+        else:
+            def iterator():
+                x = torch.cat([features[f].unsqueeze(0) for f, _, _ in query], 0)
+                y = torch.cat([features[f].unsqueeze(0) for f, _, _ in gallery], 0)
+                m, n = x.size(0), y.size(0)
+                x = x.view(m, -1)
+                y = y.view(n, -1)
+                if metric is not None:
+                    x = metric.transform(x)
+                    y = metric.transform(y)
+                x2 = torch.pow(x, 2).sum(dim=1, keepdim=True) # .expand(m, n) + \
+                y2 = torch.pow(y, 2).sum(dim=1, keepdim=True) # .expand(n, m).t()
+
+                for dist_batch_start in tqdm(range(0, m, BATCH_SIZE), desc='Calc distance'):
+                    x_batch = x[dist_batch_start:dist_batch_start + BATCH_SIZE]
+                    x2_batch = x2[dist_batch_start:dist_batch_start + BATCH_SIZE]
+                    batch_size = x_batch.shape[0]
+
+                    dist = x2_batch.expand(batch_size, n) + y2.expand(n, batch_size).t()
+                    dist.addmm_(1, -2, x_batch, y.t())
+
+
+                    for row in dist.cpu().numpy():
+                        yield row
+
+        return iterator()
 
 
 def evaluate_all(distmat, query=None, gallery=None,
@@ -117,5 +158,5 @@ class Evaluator(object):
 
     def evaluate(self, data_loader, query, gallery, metric=None):
         features, _ = extract_features(self.model, data_loader)
-        distmat = pairwise_distance(features, query, gallery, metric=metric)
+        distmat = PairwiseDistance(features, query, gallery, metric=metric)
         return evaluate_all(distmat, query=query, gallery=gallery)

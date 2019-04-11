@@ -76,9 +76,6 @@ def main(args):
     name = f'{args.dataset}-{args.arch}'
     logs_dir = f'logs/softmax-loss/{name}'
 
-    if not args.evaluate:
-        sys.stdout = Logger(osp.join(logs_dir, 'log.txt'))
-
     # Create data loaders
     if args.height is None or args.width is None:
         args.height, args.width = (144, 56) if args.arch == 'inception' else \
@@ -94,13 +91,12 @@ def main(args):
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
-    if args.resume:
-        checkpoint = load_checkpoint(args.resume)
-        model.load_state_dict(checkpoint['state_dict'])
-        start_epoch = checkpoint['epoch']
-        best_top1 = checkpoint['best_top1']
-        print("=> Start epoch {}  best top1 {:.1%}"
-              .format(start_epoch, best_top1))
+    checkpoint = load_checkpoint(args.resume)
+    model.load_state_dict(checkpoint['state_dict'])
+    start_epoch = checkpoint['epoch']
+    best_top1 = checkpoint['best_top1']
+    print("=> Start epoch {}  best top1 {:.1%}"
+          .format(start_epoch, best_top1))
     model = model.cuda()
 
     # Distance metric
@@ -108,69 +104,11 @@ def main(args):
 
     # Evaluator
     evaluator = Evaluator(model)
-    if args.evaluate:
-        metric.train(model, train_loader)
-        print("Validation:")
-        evaluator.evaluate(val_loader, dataset.val, dataset.val, metric)
-        print("Test:")
-        evaluator.evaluate(test_loader, dataset.query, dataset.gallery, metric)
-        return
-
-    # Criterion
-    criterion = nn.CrossEntropyLoss().cuda()
-
-    # Optimizer
-    if hasattr(model, 'base'):
-        base_param_ids = set(map(id, model.base.parameters()))
-        new_params = [p for p in model.parameters() if
-                      id(p) not in base_param_ids]
-        param_groups = [
-            {'params': model.base.parameters(), 'lr_mult': 0.1},
-            {'params': new_params, 'lr_mult': 1.0}]
-    else:
-        param_groups = model.parameters()
-    optimizer = torch.optim.SGD(param_groups, lr=args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay,
-                                nesterov=True)
-
-    # Trainer
-
-    trainer = Trainer(model, criterion, name=name)
-
-    # Schedule learning rate
-    def adjust_lr(epoch):
-        step_size = 60 if args.arch == 'inception' else 40
-        lr = args.lr * (0.1 ** (epoch // step_size))
-        for g in optimizer.param_groups:
-            g['lr'] = lr * g.get('lr_mult', 1)
-
-    # Start training
-    for epoch in range(start_epoch, args.epochs):
-        adjust_lr(epoch)
-        trainer.train(epoch, train_loader, optimizer)
-        if epoch < args.start_save:
-            continue
-        top1 = evaluator.evaluate(val_loader, dataset.val, dataset.val)
-
-        is_best = top1 > best_top1
-        best_top1 = max(top1, best_top1)
-        save_checkpoint({
-            'state_dict': model.state_dict(),
-            'epoch': epoch + 1,
-            'best_top1': best_top1,
-        }, is_best, fpath=osp.join(logs_dir, 'checkpoint.pth.tar'))
-
-        print('\n * Finished epoch {:3d}  top1: {:5.1%}  best: {:5.1%}{}\n'.
-              format(epoch, top1, best_top1, ' *' if is_best else ''))
-
-    # Final test
-    print('Test with best model:')
-    checkpoint = load_checkpoint(osp.join(logs_dir, 'model_best.pth.tar'))
-    model.load_state_dict(checkpoint['state_dict'])
     metric.train(model, train_loader)
-    evaluator.evaluate(test_loader, dataset.query, dataset.gallery, metric)
-
+    print("Validation:")
+    evaluator.evaluate(val_loader, dataset.val, dataset.val, metric)
+    # print("Test:")
+    # evaluator.evaluate(test_loader, dataset.query, dataset.gallery, metric)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
@@ -189,26 +127,13 @@ if __name__ == '__main__':
     parser.add_argument('--combine-trainval', action='store_true',
                         help="train and val sets together for training, "
                              "val set alone for validation")
+    parser.add_argument('--resume', type=str, default='', metavar='PATH')
     # model
     parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
     parser.add_argument('--features', type=int, default=128)
     parser.add_argument('--dropout', type=float, default=0.5)
-    # optimizer
-    parser.add_argument('--lr', type=float, default=0.1,
-                        help="learning rate of new parameters, for pretrained "
-                             "parameters it is 10 times smaller than this")
-    parser.add_argument('--momentum', type=float, default=0.9)
-    parser.add_argument('--weight-decay', type=float, default=5e-4)
-    # training configs
-    parser.add_argument('--resume', type=str, default='', metavar='PATH')
-    parser.add_argument('--evaluate', action='store_true',
-                        help="evaluation only")
-    parser.add_argument('--epochs', type=int, default=50)
-    parser.add_argument('--start_save', type=int, default=0,
-                        help="start saving checkpoints after specific epoch")
     parser.add_argument('--seed', type=int, default=1)
-    parser.add_argument('--print-freq', type=int, default=1)
     # metric learning
     parser.add_argument('--dist-metric', type=str, default='euclidean',
                         choices=['euclidean', 'kissme'])
