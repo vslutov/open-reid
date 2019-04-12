@@ -87,7 +87,7 @@ def main(args):
 
     # Create model
     model = models.create(args.arch, num_features=args.features,
-                          dropout=args.dropout, num_classes=num_classes)
+                          dropout=args.dropout, num_classes=num_classes, cos_output=args.cos_output)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
@@ -107,8 +107,8 @@ def main(args):
     metric.train(model, train_loader)
     print("Validation:")
     evaluator.evaluate(val_loader, dataset.val, dataset.val, metric)
-    # print("Test:")
-    # evaluator.evaluate(test_loader, dataset.query, dataset.gallery, metric)
+    print("Test:")
+    evaluator.evaluate(test_loader, dataset.query, dataset.gallery, metric)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Softmax loss classification")
@@ -134,6 +134,7 @@ if __name__ == '__main__':
     parser.add_argument('--features', type=int, default=128)
     parser.add_argument('--dropout', type=float, default=0.5)
     parser.add_argument('--seed', type=int, default=1)
+    parser.add_argument('--cos-output', action='store_true')
     # metric learning
     parser.add_argument('--dist-metric', type=str, default='euclidean',
                         choices=['euclidean', 'kissme'])
