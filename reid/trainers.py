@@ -11,6 +11,7 @@ from tqdm.autonotebook import tqdm
 from .evaluation_metrics import accuracy
 from .loss import OIMLoss, TripletLoss
 from .utils.meters import AverageMeter
+from .amsoftmax import AMSoftmax
 
 
 class BaseTrainer(object):
@@ -81,7 +82,7 @@ class Trainer(BaseTrainer):
 
     def _forward(self, inputs, targets):
         outputs = self.model(*inputs)
-        if isinstance(self.criterion, torch.nn.CrossEntropyLoss):
+        if isinstance(self.criterion, (torch.nn.CrossEntropyLoss, AMSoftmax)):
             loss = self.criterion(outputs, targets)
             prec, = accuracy(outputs, targets)
             prec = prec.item()

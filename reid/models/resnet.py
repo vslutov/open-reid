@@ -5,6 +5,8 @@ from torch.nn import functional as F
 from torch.nn import init
 import torchvision
 
+from reid.amsoftmax import CosDistance
+
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152']
@@ -20,7 +22,7 @@ class ResNet(nn.Module):
     }
 
     def __init__(self, depth, pretrained=True, cut_at_pooling=False,
-                 num_features=0, norm=False, dropout=0, num_classes=0):
+                 num_features=0, norm=False, dropout=0, num_classes=0, cos_output=False):
         super(ResNet, self).__init__()
 
         self.depth = depth
@@ -55,9 +57,13 @@ class ResNet(nn.Module):
             if self.dropout > 0:
                 self.drop = nn.Dropout(self.dropout)
             if self.num_classes > 0:
-                self.classifier = nn.Linear(self.num_features, self.num_classes)
-                init.normal_(self.classifier.weight, std=0.001)
-                init.constant_(self.classifier.bias, 0)
+                if cos_output:
+                    self.classifier = CosDistance(self.num_features, self.num_classes)
+                else:
+                    self.classifier = nn.Linear(self.num_features, self.num_classes)
+                    init.normal_(self.classifier.weight, std=0.001)
+                    init.constant_(self.classifier.bias, 0)
+
 
         if not self.pretrained:
             self.reset_params()
