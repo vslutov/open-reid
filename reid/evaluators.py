@@ -10,33 +10,18 @@ from .feature_extraction import extract_cnn_feature
 from .utils.meters import AverageMeter
 
 
-def extract_features(model, data_loader, print_freq=1, metric=None):
+def extract_features(model, data_loader, normalize_features=False):
     model.eval()
-    batch_time = AverageMeter()
-    data_time = AverageMeter()
 
     features = OrderedDict()
     labels = OrderedDict()
 
     end = time.time()
     for i, (imgs, fnames, pids, _) in enumerate(tqdm(data_loader, desc='Extract Features')):
-        data_time.update(time.time() - end)
-
-        outputs = extract_cnn_feature(model, imgs)
+        outputs = extract_cnn_feature(model, imgs, modules=[model.features], normalize_features=normalize_features)[0]
         for fname, output, pid in zip(fnames, outputs, pids):
             features[fname] = output
             labels[fname] = pid
-
-        batch_time.update(time.time() - end)
-        end = time.time()
-
-        # if (i + 1) % print_freq == 0:
-        #     print('Extract Features: [{}/{}]\t'
-        #           'Time {:.3f} ({:.3f})\t'
-        #           'Data {:.3f} ({:.3f})\t'
-        #           .format(i + 1, len(data_loader),
-        #                   batch_time.val, batch_time.avg,
-        #                   data_time.val, data_time.avg))
 
     return features, labels
 
@@ -152,11 +137,12 @@ def evaluate_all(distmat, query=None, gallery=None,
 
 
 class Evaluator(object):
-    def __init__(self, model):
+    def __init__(self, model, normalize_features=False):
         super(Evaluator, self).__init__()
         self.model = model
+        self.normalize_features = normalize_features
 
     def evaluate(self, data_loader, query, gallery, metric=None):
-        features, _ = extract_features(self.model, data_loader)
+        features, _ = extract_features(self.model, data_loader, normalize_features=self.normalize_features)
         distmat = PairwiseDistance(features, query, gallery, metric=metric)
         return evaluate_all(distmat, query=query, gallery=gallery)

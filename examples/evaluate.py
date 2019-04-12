@@ -103,7 +103,7 @@ def main(args):
     metric = DistanceMetric(algorithm=args.dist_metric)
 
     # Evaluator
-    evaluator = Evaluator(model)
+    evaluator = Evaluator(model, normalize_features=args.cos_output)
     metric.train(model, train_loader)
     print("Validation:")
     evaluator.evaluate(val_loader, dataset.val, dataset.val, metric)

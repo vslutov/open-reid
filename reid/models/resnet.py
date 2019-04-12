@@ -28,6 +28,8 @@ class ResNet(nn.Module):
         self.depth = depth
         self.pretrained = pretrained
         self.cut_at_pooling = cut_at_pooling
+        self.features = nn.Sequential()
+
 
         # Construct base (pretrained) resnet
         if depth not in ResNet.__factory:
@@ -89,6 +91,7 @@ class ResNet(nn.Module):
             x = F.relu(x)
         if self.dropout > 0:
             x = self.drop(x)
+        x = self.features(x)
         if self.num_classes > 0:
             x = self.classifier(x)
         return x
