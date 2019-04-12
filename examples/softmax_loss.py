@@ -63,7 +63,13 @@ def get_data(name, split_id, data_dir, height, width, batch_size, workers,
         batch_size=batch_size, num_workers=workers,
         shuffle=False, pin_memory=True)
 
-    return dataset, num_classes, train_loader, val_loader, test_loader
+    pid_train = np.array(list(pid for _, pid, _ in train_set))
+    class_weight = np.array([(pid_train == i).sum() for i in range(num_classes)])
+    assert np.all(class_weight != 0)
+    class_weight = pid_train.shape[0] / num_classes / class_weight
+    class_weight = torch.Tensor(class_weight).cuda()
+
+    return dataset, num_classes, class_weight, train_loader, val_loader, test_loader
 
 
 def main(args):
@@ -83,7 +89,7 @@ def main(args):
     if args.height is None or args.width is None:
         args.height, args.width = (144, 56) if args.arch == 'inception' else \
                                   (256, 128)
-    dataset, num_classes, train_loader, val_loader, test_loader = \
+    dataset, num_classes, class_weight, train_loader, val_loader, test_loader = \
         get_data(args.dataset, args.split, args.data_dir, args.height,
                  args.width, args.batch_size, args.workers,
                  args.combine_trainval)
@@ -117,7 +123,10 @@ def main(args):
         return
 
     # Criterion
-    criterion = nn.CrossEntropyLoss().cuda()
+    if args.class_weight:
+        criterion = nn.CrossEntropyLoss(weight=class_weight).cuda()
+    else:
+        criterion = nn.CrossEntropyLoss().cuda()
 
     # Optimizer
     if hasattr(model, 'base'):
@@ -200,6 +209,7 @@ if __name__ == '__main__':
                              "parameters it is 10 times smaller than this")
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--weight-decay', type=float, default=5e-4)
+    parser.add_argument('--class-weight', action='store_true')
     # training configs
     parser.add_argument('--resume', type=str, default='', metavar='PATH')
     parser.add_argument('--evaluate', action='store_true',
