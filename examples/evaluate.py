@@ -87,12 +87,12 @@ def main(args):
 
     # Create model
     model = models.create(args.arch, num_features=args.features,
-                          dropout=args.dropout, num_classes=num_classes, cos_output=args.cos_output)
+                          dropout=args.dropout, cos_output=args.cos_output)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
     checkpoint = load_checkpoint(args.resume)
-    model.load_state_dict(checkpoint['state_dict'])
+    model.load_state_dict(checkpoint['state_dict'], strict=False)
     start_epoch = checkpoint['epoch']
     best_top1 = checkpoint['best_top1']
     print("=> Start epoch {}  best top1 {:.1%}"
@@ -103,7 +103,7 @@ def main(args):
     metric = DistanceMetric(algorithm=args.dist_metric)
 
     # Evaluator
-    evaluator = Evaluator(model, normalize_features=args.cos_output)
+    evaluator = Evaluator(model, normalize_features=True) # args.cos_output)
     metric.train(model, train_loader)
     print("Validation:")
     evaluator.evaluate(val_loader, dataset.val, dataset.val, metric)

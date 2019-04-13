@@ -95,7 +95,7 @@ class PairwiseDistance:
 def evaluate_all(distmat, query=None, gallery=None,
                  query_ids=None, gallery_ids=None,
                  query_cams=None, gallery_cams=None,
-                 cmc_topk=(1, 5, 10)):
+                 cmc_topk=(1, 5, 10), only_top1=False):
     if query is not None and gallery is not None:
         query_ids = [pid for _, pid, _ in query]
         gallery_ids = [pid for _, pid, _ in gallery]
@@ -104,6 +104,13 @@ def evaluate_all(distmat, query=None, gallery=None,
     else:
         assert (query_ids is not None and gallery_ids is not None
                 and query_cams is not None and gallery_cams is not None)
+
+    if only_top1:
+        return cmc(distmat, query_ids, gallery_ids,
+                   query_cams, gallery_cams,
+                   separate_camera_set=False,
+                   single_gallery_shot=False,
+                   first_match_break=False)[0]
 
     # Compute mean AP
     mAP = mean_ap(distmat, query_ids, gallery_ids, query_cams, gallery_cams)
@@ -137,12 +144,13 @@ def evaluate_all(distmat, query=None, gallery=None,
 
 
 class Evaluator(object):
-    def __init__(self, model, normalize_features=False):
+    def __init__(self, model, normalize_features=False, only_top1=False):
         super(Evaluator, self).__init__()
         self.model = model
         self.normalize_features = normalize_features
+        self.only_top1 = only_top1
 
     def evaluate(self, data_loader, query, gallery, metric=None):
         features, _ = extract_features(self.model, data_loader, normalize_features=self.normalize_features)
         distmat = PairwiseDistance(features, query, gallery, metric=metric)
-        return evaluate_all(distmat, query=query, gallery=gallery)
+        return evaluate_all(distmat, query=query, gallery=gallery, only_top1=self.only_top1)

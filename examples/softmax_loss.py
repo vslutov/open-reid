@@ -113,7 +113,7 @@ def main(args):
     metric = DistanceMetric(algorithm=args.dist_metric)
 
     # Evaluator
-    evaluator = Evaluator(model)
+    evaluator = Evaluator(model, only_top1=True)
     if args.evaluate:
         metric.train(model, train_loader)
         print("Validation:")

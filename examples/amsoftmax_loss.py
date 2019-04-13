@@ -99,7 +99,6 @@ def main(args):
     model = models.create(args.arch, num_features=args.features,
                           dropout=args.dropout, num_classes=num_classes, cos_output=True)
 
-    print(model)
 
     # Load from checkpoint
     start_epoch = best_top1 = 0
@@ -116,7 +115,7 @@ def main(args):
     metric = DistanceMetric(algorithm=args.dist_metric)
 
     # Evaluator
-    evaluator = Evaluator(model, normalize_features=True)
+    evaluator = Evaluator(model, normalize_features=True, only_top1=True)
     if args.evaluate:
         metric.train(model, train_loader)
         print("Validation:")

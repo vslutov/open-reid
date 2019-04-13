@@ -6,9 +6,9 @@ from ..utils.osutils import mkdir_if_missing
 from ..utils.serialization import write_json
 
 
-class Moscow(Dataset):
+class AutomaticMoscow(Dataset):
     def __init__(self, root, split_id=0, num_val=0.2, download=True):
-        super(Moscow, self).__init__(root, split_id=split_id)
+        super(AutomaticMoscow, self).__init__(root, split_id=split_id)
 
         if download:
             self.download()
@@ -38,7 +38,7 @@ class Moscow(Dataset):
         mkdir_if_missing(images_dir)
 
         # 1501 identities (+1 for background) with 6 camera views each
-        identities = [[[] for _ in range(6)] for _ in range(380)]
+        identities = [[[] for _ in range(6)] for _ in range(739)]
 
         def register(subdir, pattern=re.compile(r'([-\d]+)C(\d)')):
             fpaths = sorted(glob(osp.join(raw_dir, subdir, '*', '*.png')))
@@ -47,7 +47,7 @@ class Moscow(Dataset):
                 fname = osp.basename(fpath)
                 pid, cam = map(int, pattern.search(fname).groups())
                 if pid == -1: continue  # junk images are just ignored
-                assert 0 <= pid <= 379  # pid == 0 means background
+                assert 0 <= pid <= 738  # pid == 0 means background
                 assert 1 <= cam <= 2
                 cam -= 1
                 pids.add(pid)
@@ -65,7 +65,7 @@ class Moscow(Dataset):
         assert trainval_pids.isdisjoint(gallery_pids)
 
         # Save meta information into a json file
-        meta = {'name': 'Moscow', 'shot': 'multiple', 'num_cameras': 2,
+        meta = {'name': 'AutomaticMoscow', 'shot': 'multiple', 'num_cameras': 2,
                 'identities': identities}
         write_json(meta, osp.join(self.root, 'meta.json'))
 

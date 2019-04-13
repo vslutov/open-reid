@@ -29,7 +29,7 @@ class CosDistance(torch.nn.Module):
         return cos
 
 
-def amsoftmax(cos, y, s=30, m=0.35, weight=None):
+def amsoftmax(cos, y, s=10, m=0.35, weight=None):
     n, c = cos.size()
     arange = torch.arange(n, dtype=torch.int64)
 

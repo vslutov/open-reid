@@ -8,6 +8,7 @@ from .market1501 import Market1501
 from .viper import VIPeR
 from .mars import Mars
 from .moscow import Moscow
+from .automatic_moscow import AutomaticMoscow
 
 
 __factory = {
@@ -17,7 +18,8 @@ __factory = {
     'market1501': Market1501,
     'dukemtmc': DukeMTMC,
     'mars': Mars,
-    'moscow': Moscow
+    'moscow': Moscow,
+    'automatic_moscow': AutomaticMoscow
 }
 
 
