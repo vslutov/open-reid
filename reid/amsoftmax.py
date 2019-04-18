@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch import nn
+import math
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -17,19 +18,20 @@ class CosDistance(torch.nn.Module):
 
         if weight is None:
             weight = torch.Tensor(input_features, output_features)
-            torch.nn.init.xavier_uniform_(weight)
+            nn.init.normal_(weight, std=math.sqrt(1.0 / input_features))
 
         self.weight = nn.Parameter(weight)
+        # nn.utils.weight_norm(self, name='weight', dim=0)
 
     def forward(self, X):
-        W_norm = self.weight.norm(2, 0) # (self.weight ** 2).sum(dim=0).sqrt()
-        X_norm = X.norm(2, 1) # (X ** 2).sum(dim=1).sqrt()
-        cos = torch.mm(X, self.weight) / W_norm[np.newaxis, :] / X_norm[:, np.newaxis]
+        W_norm = self.weight.norm(2, 0)
+        weight = self.weight / W_norm[None, :]
+        X_norm = X.norm(2, 1)
+        X = X / X_norm[:, None]
+        return torch.mm(X, weight)
 
-        return cos
 
-
-def amsoftmax(cos, y, s=10, m=0.35, weight=None):
+def amsoftmax(cos, y, s, m, weight=None):
     n, c = cos.size()
     arange = torch.arange(n, dtype=torch.int64)
 
@@ -41,7 +43,7 @@ def amsoftmax(cos, y, s=10, m=0.35, weight=None):
     return torch.nn.functional.cross_entropy(logits, y, weight=weight, reduction='mean')
 
 class AMSoftmax(torch.nn.Module):
-    def __init__(self, s=30, m=0.35, weight=None):
+    def __init__(self, s=30, m=0.30, weight=None):
         super().__init__()
         self.s = s
         self.m = m
