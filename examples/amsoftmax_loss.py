@@ -136,7 +136,7 @@ def main(args):
         new_params = [p for p in model.parameters() if
                       id(p) not in base_param_ids]
         param_groups = [
-            {'params': model.base.parameters(), 'lr_mult': 0.1},
+            {'params': model.base.parameters(), 'lr_mult': 0.01},
             {'params': new_params, 'lr_mult': 1.0}]
     else:
         param_groups = model.parameters()

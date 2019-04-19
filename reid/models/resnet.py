@@ -28,6 +28,7 @@ class ResNet(nn.Module):
         self.depth = depth
         self.pretrained = pretrained
         self.cut_at_pooling = cut_at_pooling
+        self.cos_output = cos_output
         self.features = nn.Sequential()
 
 
@@ -59,7 +60,7 @@ class ResNet(nn.Module):
             if self.dropout > 0:
                 self.drop = nn.Dropout(self.dropout)
             if self.num_classes > 0:
-                if cos_output:
+                if self.cos_output:
                     self.classifier = CosDistance(self.num_features, self.num_classes)
                 else:
                     self.classifier = nn.Linear(self.num_features, self.num_classes)
@@ -91,6 +92,11 @@ class ResNet(nn.Module):
             x = F.relu(x)
         if self.dropout > 0:
             x = self.drop(x)
+
+        if self.cos_output:
+            x = x - x.mean(dim=1, keepdim=True)
+            x = F.normalize(x)
+
         x = self.features(x)
         if self.num_classes > 0:
             x = self.classifier(x)

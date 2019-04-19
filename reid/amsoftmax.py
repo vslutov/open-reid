@@ -21,13 +21,10 @@ class CosDistance(torch.nn.Module):
             nn.init.normal_(weight, std=math.sqrt(1.0 / input_features))
 
         self.weight = nn.Parameter(weight)
-        # nn.utils.weight_norm(self, name='weight', dim=0)
 
     def forward(self, X):
         W_norm = self.weight.norm(2, 0)
         weight = self.weight / W_norm[None, :]
-        X_norm = X.norm(2, 1)
-        X = X / X_norm[:, None]
         return torch.mm(X, weight)
 
 
